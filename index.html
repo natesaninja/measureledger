@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MeasureLedger</title>
+<meta name="theme-color" content="#111418">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="bar no-print">
+  <a href="#/" class="brand">MeasureLedger</a>
+  <nav>
+    <a href="#/">Projects</a><a href="#/search">Search</a><a href="#/calc">Calc</a><a href="#/settings">More</a>
+  </nav>
+  <button id="unitBtn" class="chip" title="Display units">ft-in</button>
+</header>
+<main id="app"></main>
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
