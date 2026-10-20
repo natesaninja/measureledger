@@ -67,5 +67,46 @@ export function formatValue(meas, unit) {
   if (meas.kind === 'area') return formatArea(meas.value, unit);
   if (meas.kind === 'volume') return formatVolume(meas.value, unit);
   if (meas.kind === 'angle') return `${(+meas.value).toFixed(1)}°`;
+  if (meas.kind === 'slope') return formatPitch(+meas.value);
   return formatLength(meas.value, unit);
 }
+
+// ---------- Area / volume / angle / pitch parsing ----------
+const AREA_ALIAS = { 'm2': 'm', 'm²': 'm', 'sqm': 'm', 'sq m': 'm', 'square meters': 'm', 'square metres': 'm',
+  'ft2': 'ft', 'ft²': 'ft', 'sqft': 'ft', 'sq ft': 'ft', 'sf': 'ft', 'square feet': 'ft', 'square foot': 'ft',
+  'in2': 'in', 'in²': 'in', 'sq in': 'in', 'yd2': 'yd', 'yd²': 'yd', 'sq yd': 'yd', 'sqyd': 'yd', 'cm2': 'cm', 'cm²': 'cm', 'sq cm': 'cm', 'mm2': 'mm', 'mm²': 'mm' };
+const VOL_ALIAS = { 'm3': 'm', 'm³': 'm', 'cu m': 'm', 'cubic meters': 'm', 'ft3': 'ft', 'ft³': 'ft', 'cu ft': 'ft', 'cf': 'ft', 'cubic feet': 'ft',
+  'yd3': 'yd', 'yd³': 'yd', 'cu yd': 'yd', 'cy': 'yd', 'cubic yards': 'yd', 'yards': 'yd', 'in3': 'in', 'in³': 'in', 'cu in': 'in', 'cm3': 'cm', 'cm³': 'cm', 'cc': 'cm' };
+const VOL_EXTRA = { l: 0.001, liter: 0.001, liters: 0.001, litre: 0.001, litres: 0.001, gal: 0.003785411784, gallon: 0.003785411784, gallons: 0.003785411784 };
+function splitNum(s) { const m = String(s ?? '').trim().toLowerCase().replace(/,(?=\d{1,2}\b)/, '.').match(/^(-?\d*\.?\d+(?:e-?\d+)?)\s*(.*)$/); return m ? [parseFloat(m[1]), m[2].replace(/\s+/g, ' ').replace(/\.$/, '').trim()] : null; }
+/** "120 sq ft", "12 m²", "1200sf", "10 sq yd", "12' x 10'" -> {value m², unit} */
+export function parseArea(input, defaultUnit = 'ft') {
+  const s = String(input ?? '').trim(); if (!s) return null;
+  const x = s.split(/\s*[x×*]\s*/i);
+  if (x.length === 2) { const a = parseLength(x[0], defaultUnit), b = parseLength(x[1], defaultUnit); return a && b ? { value: a.meters * b.meters, unit: areaUnit(a.unit) } : null; }
+  const p = splitNum(s); if (!p || isNaN(p[0])) return null;
+  const u = p[1] ? AREA_ALIAS[p[1]] : areaUnit(defaultUnit); if (!u) return null;
+  return { value: p[0] * M2_PER[u], unit: u };
+}
+export function parseVolume(input, defaultUnit = 'ft') {
+  const s = String(input ?? '').trim(); if (!s) return null;
+  const x = s.split(/\s*[x×*]\s*/i);
+  if (x.length === 3) { const d = x.map(v => parseLength(v, defaultUnit)); return d.every(Boolean) ? { value: d[0].meters * d[1].meters * d[2].meters, unit: areaUnit(d[0].unit) } : null; }
+  const p = splitNum(s); if (!p || isNaN(p[0])) return null;
+  if (p[1] && VOL_EXTRA[p[1]]) return { value: p[0] * VOL_EXTRA[p[1]], unit: p[1].startsWith('g') ? 'gal' : 'L' };
+  const u = p[1] ? VOL_ALIAS[p[1]] : areaUnit(defaultUnit); if (!u) return null;
+  return { value: p[0] * M3_PER[u], unit: u };
+}
+/** Angle/pitch -> degrees. Accepts "30°", "30 deg", "0.5 rad", "6/12", "6:12", "6 in 12", "50%", "4' / 12'" (rise/run lengths). Bare number = degrees. */
+export function parseAngle(input) {
+  let s = String(input ?? '').trim().toLowerCase(); if (!s) return null;
+  let m = s.match(/^(-?\d*\.?\d+)\s*(?:°|deg|degrees?)?$/); if (m) return { value: +m[1], unit: 'deg' };
+  if ((m = s.match(/^(-?\d*\.?\d+)\s*rad$/))) return { value: +m[1] * 180 / Math.PI, unit: 'rad' };
+  if ((m = s.match(/^(-?\d*\.?\d+)\s*%$/))) return { value: Math.atan(+m[1] / 100) * 180 / Math.PI, unit: 'pct' };
+  if ((m = s.match(/^(-?\d*\.?\d+)\s*(?:\/|:|in)\s*12$/))) return { value: Math.atan(+m[1] / 12) * 180 / Math.PI, unit: 'pitch' };
+  const parts = s.split(/\s*(?:\/|:|over)\s*/);
+  if (parts.length === 2) { const r = parseLength(parts[0]), n = parseLength(parts[1]); if (r && n && n.meters) return { value: Math.atan2(r.meters, n.meters) * 180 / Math.PI, unit: 'pitch' }; }
+  return null;
+}
+export const pitchFromDeg = deg => { const t = Math.tan(deg * Math.PI / 180); return { deg, pct: t * 100, per12: t * 12, ratio: t }; };
+export function formatPitch(deg) { const p = pitchFromDeg(deg); return `${p.per12.toFixed(2)}/12 · ${deg.toFixed(1)}° · ${p.pct.toFixed(1)}%`; }

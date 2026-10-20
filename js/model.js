@@ -1,13 +1,13 @@
 // Versioned schema + migrations. See docs/DATA_MODEL.md
-export const SCHEMA_VERSION = 2;
-export const MODES = ['distance', 'area', 'volume', 'p2p', 'pythagorean', 'continuous', 'angle', 'manual'];
-export const KINDS = ['length', 'area', 'volume', 'angle'];
+export const SCHEMA_VERSION = 3;
+export const MODES = ['distance', 'area', 'volume', 'p2p', 'pythagorean', 'continuous', 'angle', 'manual', 'pitch'];
+export const KINDS = ['length', 'area', 'volume', 'angle', 'slope'];
 export const SOURCES = ['manual', 'paste', 'csv', 'ble', 'template', 'import'];
 export const uid = (p = 'id') => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const now = () => new Date().toISOString();
 
-export function emptyDB() { return { schemaVersion: SCHEMA_VERSION, projects: [], measurements: [], audit: [], settings: { unit: 'ftin', theme: 'dark', denom: 16 } }; }
-export function newProject(o = {}) { const t = now(); return { id: uid('p'), name: o.name || 'Untitled project', description: o.description || '', tags: o.tags || [], favorite: !!o.favorite, archived: false, template: o.template || null, createdAt: t, updatedAt: t }; }
+export function emptyDB() { return { schemaVersion: SCHEMA_VERSION, projects: [], measurements: [], audit: [], rooms: [], calcs: [], settings: { unit: 'ftin', theme: 'dark', denom: 16, lastBackupAt: null } }; }
+export function newProject(o = {}) { const t = now(); return { id: uid('p'), name: o.name || 'Untitled project', description: o.description || '', tags: o.tags || [], favorite: !!o.favorite, archived: false, template: o.template || null, form: o.form || {}, createdAt: t, updatedAt: t }; }
 export function newMeasurement(o = {}) {
   const t = now();
   return { id: uid('m'), projectId: o.projectId || null, label: o.label || '', value: o.value ?? null, kind: o.kind || 'length',
@@ -31,6 +31,11 @@ export function migrate(db) {
     db.measurements = db.measurements.map(m => { const { valueM, ...r } = m; return { ...newMeasurement(), ...r, kind: r.kind || 'length', source: r.source || 'manual', tags: r.tags || [], photoIds: r.photoIds || [] }; });
     db.audit = db.audit || []; db.settings = { ...emptyDB().settings, ...(db.settings || {}) }; delete db.version;
     v = 2;
+  }
+  if (v < 3) { // v3: room plans, saved calculator results, backup reminder, per-project form values
+    db.rooms = db.rooms || []; db.calcs = db.calcs || []; db.settings = { ...emptyDB().settings, ...(db.settings || {}) };
+    for (const p of db.projects) p.form = p.form || {};
+    v = 3;
   }
   db.schemaVersion = v; return db;
 }

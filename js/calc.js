@@ -41,3 +41,19 @@ export function cutList(pieces, stock, kerf = 0.003) {
   }
   return bins;
 }
+
+/** Roof: rafter/hip helpers from pitch (deg) and horizontal run (m). */
+export function rafter(runM, deg, overhangM = 0) { const c = Math.cos(deg * Math.PI / 180); return { rafter: (runM + overhangM) / c, rise: runM * Math.tan(deg * Math.PI / 180), factor: 1 / c }; }
+/** Earthworks, grid method: depths[r][c] (m) at grid nodes, spacing dx, dy (m). Each cell volume = dx*dy*avg(4 corners). */
+export function earthworksGrid(depths, dx, dy) {
+  const rows = depths.length, cols = depths[0]?.length || 0;
+  if (rows < 2 || cols < 2 || depths.some(r => r.length !== cols)) throw new Error('grid needs ≥2 rows × ≥2 cols of equal length');
+  let v = 0, cells = 0;
+  for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) { v += dx * dy * (depths[r][c] + depths[r][c + 1] + depths[r + 1][c] + depths[r + 1][c + 1]) / 4; cells++; }
+  return { volume: v, area: dx * dy * cells, cells, avgDepth: v / (dx * dy * cells) };
+}
+/** Earthworks, average-depth method: area (m²) × mean of spot depths. swellPct for loose (truck) volume. */
+export function earthworksAvg(areaM2, depths, swellPct = 0) {
+  if (!depths.length) throw new Error('no depths'); const avg = depths.reduce((a, b) => a + b, 0) / depths.length;
+  const bank = areaM2 * avg; return { volume: bank, loose: bank * (1 + swellPct / 100), avgDepth: avg };
+}
