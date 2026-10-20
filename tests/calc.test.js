@@ -1,0 +1,12 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import * as c from '../js/calc.js';
+const near = (a, b, e = 1e-6) => assert.ok(Math.abs(a - b) < e, `${a} != ${b}`);
+const FT = 0.3048;
+test('area/volume', () => { near(c.area(2, 3), 6); near(c.volume(2, 3, 4), 24); });
+test('3-4-5', () => { near(c.hypot(3, 4), 5); near(c.leg(5, 3), 4); assert.ok(isNaN(c.leg(3, 5))); });
+test('squareness', () => { const s = c.squareness(3, 4, 5.001, 5.002); assert.ok(s.square); assert.ok(!c.squareness(3, 4, 5.02, 5.0).square); near(c.squareness(3, 4, 5.01).diff, 0.01); });
+test('slope', () => { const s = c.slope(0.25, 12); near(s.inPerFt, 0.25); near(c.slope(1, 1).deg, 45); });
+test('flooring boxes w/ waste', () => { const r = c.flooringBoxes(100 * FT * FT, 20, 10); near(r.needFt2, 110); assert.equal(r.boxes, 6); assert.equal(c.flooringBoxes(100 * FT * FT, 20, 0).boxes, 5); });
+test('drywall sheets', () => { assert.equal(c.drywallSheets(320 * FT * FT, 4, 8, 0).sheets, 10); assert.equal(c.drywallSheets(320 * FT * FT, 4, 8, 10).sheets, 11); });
+test('posts', () => { const p = c.posts(10, 2.4); assert.equal(p.posts, 6); near(p.spacing, 2); });
+test('cut list', () => { const b = c.cutList([1, 1, 1, 2], 2.44, 0); assert.equal(b.length, 3); assert.throws(() => c.cutList([3], 2)); });

@@ -1,0 +1,14 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { parseLength, formatLength, convert, formatArea } from '../js/units.js';
+const near = (a, b, e = 1e-6) => assert.ok(Math.abs(a - b) < e, `${a} != ${b}`);
+test('ft-in with fraction', () => { const p = parseLength(`12' 6 1/2"`); near(p.meters, 12 * 0.3048 + 6.5 * 0.0254); assert.equal(p.unit, 'ftin'); });
+test('ft-in variants', () => { near(parseLength(`12'6"`).meters, 3.81); near(parseLength('12 ft 6 in').meters, 3.81); near(parseLength("12'6").meters, 3.81); near(parseLength('5-1/2"').meters, 5.5 * 0.0254); });
+test('decimal ft, m, cm, mm', () => { near(parseLength('12.54 ft').meters, 12.54 * 0.3048); near(parseLength('3.82 m').meters, 3.82); near(parseLength('382 cm').meters, 3.82); near(parseLength('3820mm').meters, 3.82); });
+test('bare number uses default unit', () => { near(parseLength('10', 'm').meters, 10); near(parseLength('10').meters, 3.048); });
+test('comma decimal', () => near(parseLength('3,82 m').meters, 3.82));
+test('rejects junk', () => { for (const s of ['', 'abc', '12 parsecs', '1/0"', null]) assert.equal(parseLength(s), null); });
+test('format ftin rounds to 1/16', () => { assert.equal(formatLength(parseLength(`12' 6 1/2"`).meters), `12' 6 1/2"`); assert.equal(formatLength(0.3048), `1' 0"`); assert.equal(formatLength(0.0254 * 0.75), `3/4"`); });
+test('format rollover 11 31/32 -> next ft', () => assert.equal(formatLength(0.3048 * 2 - 0.0001), `2' 0"`));
+test('format metric/decimal', () => { assert.equal(formatLength(3.82, 'm'), '3.820 m'); assert.equal(formatLength(3.82, 'cm'), '382.0 cm'); assert.equal(formatLength(0.3048 * 12.54, 'ft'), '12.54 ft'); assert.equal(formatLength(0.0254 * 10, 'in'), '10"'); });
+test('round trip', () => { for (const s of [`3' 4 3/8"`, `0' 0"`]) assert.equal(formatLength(parseLength(s).meters), s.replace(/^0' /, '')); });
+test('convert + area', () => { near(convert(1, 'ft', 'in'), 12); assert.equal(formatArea(0.3048 ** 2 * 100, 'ftin'), '100.00 ft²'); });
