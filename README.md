@@ -5,15 +5,42 @@ Offline-first PWA companion for the **Mileseey S50** laser distance meter. The S
 Vanilla JS, no framework, no build step — same stack as Iron Ledger and MacroLedger.
 
 ## Features
-- Projects: create from blank or templates (room, exterior wall, deck/posts, vehicle clearance, cabinet fit, plumbing runs, fence, laminate flooring), rename, favorite, archive, delete (with confirm)
-- Measurements: value, kind (length/area/volume/angle), S50 mode, reference edge, room/group, tags, notes, timestamp, favorite, source
-- Unit parsing: `12' 6 1/2"`, `12'6`, `12 ft 6 in`, `12.54 ft`, `3.82 m`, `382 cm`, `3820mm`, `36"`, `3,82 m`; display in ft-in (1/2–1/32"), decimal ft, in, m, cm, mm
-- Import: paste notes (`Label: value #tag`) or CSV, with preview and skipped-line report
-- Search & filter: text, tag, mode, date range, per project or across all
-- Calculators: area, volume, Pythagorean, diagonal squareness, slope, flooring boxes, drywall sheets (w/ openings + waste), posts, cut list (with kerf)
-- Export: full JSON backup/restore, per-project CSV (Excel-friendly, UTF-8 BOM), shareable project file, printable report → PDF
-- Audit trail of changes; dark, light, and high-contrast outdoor themes; large tap targets
-- Works fully offline after first load (service worker, versioned cache)
+**Projects & readings**
+- Projects: blank or from templates (room, exterior wall, deck/posts, vehicle clearance, cabinet fit, plumbing runs, fence, laminate flooring); rename, favorite, archive, delete with confirm
+- Measurements: value, kind (length/area/volume/angle/**slope**), S50 mode (incl. pitch), reference edge, room/group, tags, notes, timestamp, favorite, source
+- Parsing for every kind:
+  - lengths: `12' 6 1/2"`, `12.54 ft`, `3.82 m`, `382 cm`
+  - areas: `120 sq ft`, `12 m²`, `12' x 10'`
+  - volumes: `3 cu yd`, `500 L`, `2m x 3m x 0.5m`
+  - angles/pitch: `30°`, `6/12`, `50%`, `4' / 12'`
+- Display in ft-in (1/2–1/32"), decimal ft, in, m, cm, mm
+- Import from pasted notes or CSV with a preview; search and filter by text/tag/mode/date; **compare** the same label across rooms, projects and time with differences
+
+**Plans** (`#/plan/:id`)
+- SVG room sketch: draw wall by wall, or start from a rectangle; multiple rooms and floors
+- Assign readings to walls and the plan rescales to true dimensions. Walls without a reading are adjusted so the room closes; any closure gap is reported
+- Automatic area, perimeter, volume, gross/net wall (paint) area. Doors/windows/openings on walls are subtracted
+- Squareness from diagonals; measured diagonal checks
+- Export SVG, PNG, **DXF** 2D or 3D-extruded walls, and Moasure-style **points CSV**
+
+**Photos & voice**
+- Photos from the camera or files, downscaled and stored in IndexedDB, attached to a project or a reading
+- Annotator: arrows, lines, boxes, text, and **pins that show a saved reading's live value**; export annotated JPG
+- Voice notes via MediaRecorder, stored in IndexedDB
+
+**Calculators**: roof pitch (x/12, °, %, rafter length), earthworks/excavation (grid or average depth, swell), area, volume, Pythagorean, squareness, slope, flooring boxes, drywall sheets, posts, cut list. Results can be saved to a project.
+
+**Job forms**: each template has a form whose fields fill from readings with matching labels, plus derived values and manual overrides. Included in reports and XLSX.
+
+**Export & backup**
+- **Real .xlsx** with a built-in, dependency-free writer that works offline (Measurements, Rooms, Walls, Form, Calculations sheets)
+- CSV (UTF-8 BOM), shareable project file
+- Standard and detailed print/PDF reports with dual units, plans, annotated photos, forms, calcs and history
+- Full JSON backup **including photos and voice notes** (base64); a reminder appears after 7 days without a backup
+
+**Bluetooth (experimental)**: a device-adapter interface plus a Web Bluetooth GATT scanner/logger for reverse-engineering the S50 (Chrome on Android/desktop; hidden on iOS). **The S50 is not supported for direct capture yet**; see [docs/BLUETOOTH.md](docs/BLUETOOTH.md).
+
+**App**: works fully offline after the first load (versioned service-worker precache), installable (PNG + SVG icons), dark/light/high-contrast outdoor themes, large tap targets, audit trail.
 
 ## Setup
 ```bash
@@ -32,13 +59,22 @@ Push to a repo → Settings → Pages → deploy from branch `main`, folder `/`.
 ```
 index.html  manifest.webmanifest  sw.js
 css/app.css
-js/app.js        UI + router
-js/units.js      parse/format/convert (canonical meters)
-js/calc.js       calculators
-js/csv.js        CSV + paste import/export
-js/model.js      schema, factories, migrations
-js/store.js      localStorage, audit, filtering
-js/templates.js  job templates
+js/app.js         UI + router (core screens)
+js/units.js       parse/format/convert: length, area, volume, angle/pitch
+js/calc.js        calculators (incl. roof, earthworks)
+js/csv.js         CSV + paste import/export
+js/model.js       schema v3, factories, migrations
+js/store.js       localStorage, audit, filtering, compare, backup reminder
+js/templates.js   job templates
+js/forms.js       job forms filled from readings
+js/media.js       IndexedDB media store, base64 backup, image downscale
+js/photos.js      photo/voice UI + annotator           (lazy)
+js/sketch-geom.js plan geometry solver, SVG, points CSV
+js/sketch.js      plan editor UI + exports              (lazy)
+js/dxf.js         DXF R12 writer
+js/xlsx.js        dependency-free XLSX writer           (lazy)
+js/report.js      standard/detailed report              (lazy)
+js/ble.js         Bluetooth adapter interface + scanner
 docs/            DATA_MODEL.md, SCREENS.md
 tests/           node --test suites
 ```
@@ -46,9 +82,10 @@ tests/           node --test suites
 ## Data & backup
 Everything is stored in this browser's localStorage. Export a backup from **More → Export full backup** regularly. See `docs/DATA_MODEL.md`.
 
+Photos and voice notes are in IndexedDB. **Full backups include them**, so backup files can be large.
+
 ## Roadmap
-1. Floor plan / room sketch canvas (drop measurements on walls, derived area/perimeter)
-2. Photo attachments in IndexedDB + annotation with pinned measurements
-3. Comparison/history view (same label across dates and jobs)
-4. Bluetooth import from the S50 (Web Bluetooth where supported; `source: "ble"` already in the schema)
-5. Direct .xlsx export, more material calculators (paint, concrete, decking boards)
+1. S50 Bluetooth adapter once the protocol is reverse-engineered (see docs/BLUETOOTH.md)
+2. Curved/angled walls beyond 45° snapping; drag-to-edit corners
+3. Paint, concrete and decking material calculators wired to plan wall/floor areas
+4. Background sync / multi-device (currently single-device + backups)

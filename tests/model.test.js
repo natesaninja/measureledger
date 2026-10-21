@@ -5,7 +5,7 @@ test('migrate null -> empty', () => assert.equal(migrate(null).schemaVersion, SC
 test('migrate v1 nested -> v2 flat', () => {
   const v1 = { version: 1, projects: [{ id: 'p1', name: 'Deck', measurements: [{ id: 'm1', label: 'L', valueM: 2.5 }] }] };
   const d = migrate(v1);
-  assert.equal(d.schemaVersion, 2); assert.equal(d.measurements[0].projectId, 'p1'); assert.equal(d.measurements[0].value, 2.5);
+  assert.equal(d.schemaVersion, 3); assert.deepEqual(d.rooms, []); assert.deepEqual(d.projects[0].form, {}); assert.equal(d.measurements[0].projectId, 'p1'); assert.equal(d.measurements[0].value, 2.5);
   assert.equal(d.measurements[0].source, 'manual'); assert.equal(d.projects[0].measurements, undefined); assert.ok(d.settings.unit); assert.equal(v1.projects[0].measurements.length, 1);
 });
 test('migrate idempotent', () => { const d = migrate(migrate({ projects: [] })); assert.deepEqual(migrate(d), d); });
